@@ -5,51 +5,34 @@ import (
 	"os"
 
 	"github.com/abstract300/theeye/config"
+	"github.com/bwmarrin/discordgo"
 	"github.com/pkg/errors"
 )
 
-// BotStarter  wraps the discordgo.New method.
-type BotStarter interface {
-	New(args ...interface{}) (BotSession, error)
-}
-
-// BotCloser wraps discordgo's (*Session).Close method.
-type BotCloser interface {
-	Close()
-}
-
-// BotSession embed interfaces that are specific to a particular discordgo's session.
-type BotSession interface {
-	BotEventHandler
-}
-
-// BotEventHandler wraps discordgo's (*Session).AddHandler method.
-type BotEventHandler interface {
-	AddHandler(handler interface{}) func()
-}
-
 // Bot is a discord bot.
 type Bot struct {
-	Session BotSession
+	Session *discordgo.Session
 	Logger  *log.Logger
 }
 
-func NewBot(tokenFile string, fr config.FileReader, bs BotStarter) (*Bot, error) {
-	tokenData, err := config.NewConfig(tokenFile, fr)
+// NewBot creates a Bot or returns error upon failure.
+func NewBot(tokenFileName string, tokenFile config.FileReader) (*Bot, error) {
+	tokenData, err := config.NewConfig(tokenFileName, tokenFile)
 	if err != nil {
-		return &Bot{}, errors.Wrap(err, "[Error] parsing token from "+tokenFile)
+		return &Bot{}, errors.Wrap(err, "[Error] parsing token from "+tokenFileName)
 	}
 
-	dg, err := bs.New("Bot " + tokenData)
+	dg, err := discordgo.New("Bot " + tokenData)
 	if err != nil {
 		return &Bot{}, errors.Wrap(err, "[Error] discord session unavailable.")
 	}
 
-	logger := log.New(os.Stdout, "[TheEye]", log.Lshortfile)
+	logger := log.New(os.Stdout, "<-:[Bot]:-> ", log.Lshortfile)
 
 	bot := &Bot{
 		Session: dg,
 		Logger:  logger,
 	}
+
 	return bot, nil
 }

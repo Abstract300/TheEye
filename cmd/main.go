@@ -13,7 +13,7 @@ import (
 func main() {
 
 	// Create a new Discord session using the provided bot token.
-	bot, err := NewBot("token.json")
+	bot, err := NewBot("token.json", &Token{})
 	if err != nil {
 		log.Fatal("TOKEN FILE IS MISSING")
 	}
