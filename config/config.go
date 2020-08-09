@@ -6,19 +6,19 @@ import (
 	"github.com/pkg/errors"
 )
 
-// FileReader reads a file from disk for Config.
-type FileReader interface {
+// TokenParser reads a file from disk for Config.
+type TokenParser interface {
 	ReadFile(name string) ([]byte, error)
 }
 
 // Config holds the Token information to start the bot.
 type Config struct {
-	disk  FileReader
+	disk  TokenParser
 	Token string `json:"token"`
 }
 
 // NewConfig parses token data from a json file and returns it bo
-func NewConfig(fileName string, file FileReader) (string, error) {
+func NewConfig(fileName string, file TokenParser) (string, error) {
 	cfg := Config{
 		disk: file,
 	}
