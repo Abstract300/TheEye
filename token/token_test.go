@@ -1,4 +1,4 @@
-package config
+package token
 
 import (
 	"testing"
@@ -16,7 +16,7 @@ func (f *TokenFile) ReadFile(name string) ([]byte, error) {
 func TestNewConfig(t *testing.T) {
 	tokenFile := &TokenFile{}
 
-	got, err := NewConfig("fileName", tokenFile)
+	got, err := NewToken("fileName", tokenFile)
 	if err != nil {
 		t.Errorf("[Error NewConfig]: %v", err)
 	}
