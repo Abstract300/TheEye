@@ -4,17 +4,14 @@ import (
 	"testing"
 )
 
-type TokenFile struct {
-	Name string
-	Data []byte
-}
+type NoopTest struct{}
 
-func (f *TokenFile) ReadFile(name string) ([]byte, error) {
+func (f NoopTest) ReadToken(name string) ([]byte, error) {
 	return []byte(`{"token": "test token data"}`), nil
 }
 
 func TestNewConfig(t *testing.T) {
-	tokenFile := &TokenFile{}
+	tokenFile := NoopTest{}
 
 	got, err := NewToken("fileName", tokenFile)
 	if err != nil {

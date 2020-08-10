@@ -8,14 +8,14 @@ import (
 )
 
 type TokenParser interface {
-	ParseToken(fileName string) ([]byte, error)
+	ReadToken(fileName string) ([]byte, error)
 }
 
 // Noop is a no allocation struct used just to satify TokenParser
 type Noop struct{}
 
-// parseToken reads the token file and returns the file data; fails with an error otherwise.
-func (nop Noop) ParseToken(fileName string) ([]byte, error) {
+// ReadToken reads the token file and returns the file data; fails with an error otherwise.
+func (nop Noop) ReadToken(fileName string) ([]byte, error) {
 	file, err := os.Open(fileName)
 	if err != nil {
 		return []byte{}, errors.Wrap(err, "Could not open file to parse token.")
@@ -40,7 +40,7 @@ func NewToken(fileName string, parser TokenParser) (string, error) {
 
 	cfg := Auth{}
 
-	fileData, err := parser.ParseToken(fileName)
+	fileData, err := parser.ReadToken(fileName)
 	if err != nil {
 		return "", errors.Wrap(err, "Error reading "+fileName+" data.")
 	}
