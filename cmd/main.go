@@ -7,11 +7,21 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/abstract300/theeye/command"
 	"github.com/abstract300/theeye/token"
 	"github.com/bwmarrin/discordgo"
 )
 
+var (
+	router *command.Route
+	dg     *discordgo.Session
+)
+
 func main() {
+
+	router = command.NewRoute("?")
+	router.NewCommand("hello", SayHello)
+	router.NewCommand("ping", SayPing)
 
 	Token, err := token.NewToken("token.json", token.Noop{})
 	if err != nil {
@@ -19,7 +29,7 @@ func main() {
 	}
 
 	// Create a new Discord session using the provided bot token.
-	dg, err := discordgo.New("Bot " + Token)
+	dg, err = discordgo.New("Bot " + Token)
 	if err != nil {
 		fmt.Println("error creating Discord session,", err)
 		return
@@ -57,13 +67,20 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	if m.Author.ID == s.State.User.ID {
 		return
 	}
-	// If the message is "ping" reply with "Pong!"
-	if m.Content == "ping" {
-		s.ChannelMessageSend(m.ChannelID, "Pong!")
-	}
 
-	// If the message is "pong" reply with "Ping!"
-	if m.Content == "pong" {
-		s.ChannelMessageSend(m.ChannelID, "Ping!")
+	err := router.CommandHandler(*m.Message, dg)
+	if err != nil {
+		log.Printf("%+v", err)
 	}
+	/*
+		// If the message is "ping" reply with "Pong!"
+		if m.Content == "ping" {
+			s.ChannelMessageSend(m.ChannelID, "Pong!")
+		}
+
+		// If the message is "pong" reply with "Ping!"
+		if m.Content == "pong" {
+			s.ChannelMessageSend(m.ChannelID, "Ping!")
+		}
+	*/
 }
