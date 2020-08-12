@@ -50,6 +50,7 @@ func (r *Route) FindCommand(name string) (*Command, error) {
 	if cmd == nil {
 		return &Command{}, errors.New("Command not found.")
 	}
+
 	return cmd, nil
 }
 
