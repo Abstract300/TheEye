@@ -24,6 +24,7 @@ func TestFindCommand(t *testing.T) {
 		t.Error(err, " got: ", got.Name, "; Needed: ", want)
 	}
 }
+
 func BenchmarkFindCommand(b *testing.B) {
 	r := NewRoute("?")
 	r.Cmd = make(map[string]*Command)
@@ -33,6 +34,7 @@ func BenchmarkFindCommand(b *testing.B) {
 				r.Cmd[fmt.Sprintf("%d", i)] = &Command{Name: fmt.Sprintf("%d", i)}
 			}
 
+			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
 				_, err := r.FindCommand(fmt.Sprintf("%d", n))
 				if err != nil {
