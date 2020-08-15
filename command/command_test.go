@@ -15,13 +15,10 @@ func TestFindCommand(t *testing.T) {
 
 	want := "99"
 
-	got, err := r.FindCommand("99")
-	if err != nil {
-		t.Error(err)
-	}
+	got := r.FindCommand("99")
 
 	if got.Name != want {
-		t.Error(err, " got: ", got.Name, "; Needed: ", want)
+		t.Error(" got: ", got.Name, "; Needed: ", want)
 	}
 }
 
@@ -37,10 +34,7 @@ func BenchmarkFindCommand(b *testing.B) {
 
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				_, err := r.FindCommand(fmt.Sprintf("%d", n))
-				if err != nil {
-					b.FailNow()
-				}
+				r.FindCommand(fmt.Sprintf("%d", n))
 			}
 		})
 	}

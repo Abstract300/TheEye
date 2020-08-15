@@ -7,6 +7,8 @@ import (
 	"github.com/pkg/errors"
 )
 
+type Runner func(ctx *Context) error
+
 // Route holds the route for a command based on the prefix.
 type Route struct {
 	Prefix string
@@ -17,7 +19,7 @@ type Route struct {
 type Command struct {
 	Name string
 	Desc string
-	Run  func(ctx *Context)
+	Run  Runner
 }
 
 // Context provides context for a command to execute.
@@ -36,7 +38,7 @@ func NewRoute(prefix string) *Route {
 }
 
 // NewCommand adds a command to a route.
-func (r *Route) NewCommand(name string, run func(ctx *Context)) {
+func (r *Route) NewCommand(name string, run Runner) {
 	cmd := &Command{
 		Name: name,
 		Run:  run,
@@ -45,23 +47,21 @@ func (r *Route) NewCommand(name string, run func(ctx *Context)) {
 }
 
 // FindCommand finds if a command exists in a route.
-func (r *Route) FindCommand(name string) (*Command, error) {
+func (r *Route) FindCommand(name string) *Command {
 	cmd := r.Cmd[name]
 	if cmd == nil {
-		return &Command{}, errors.New("command not found")
+		// return a dummy command.
+		return &Command{Run: func(ctx *Context) error { return nil }}
 	}
 
-	return cmd, nil
+	return cmd
 }
 
 // CommandHandler is injected into the CreateMessage event handler to automatically invoke a command.
 func (r *Route) CommandHandler(msg discordgo.Message, session *discordgo.Session) error {
 	content := msg.Content
 
-	cmdName, args, err := parseMessageContent(content, r.Prefix)
-	if err != nil {
-		return errors.Wrap(err, "Cannot handle command.")
-	}
+	cmdName, args := parseMessageContent(content, r.Prefix)
 
 	ctx := &Context{
 		ChannelID: msg.ChannelID,
@@ -69,25 +69,25 @@ func (r *Route) CommandHandler(msg discordgo.Message, session *discordgo.Session
 		Session:   session,
 	}
 
-	cmd, err := r.FindCommand(cmdName)
-	if err != nil {
-		return errors.Wrap(err, "FindCommand failed.")
-	}
+	cmd := r.FindCommand(cmdName)
 
-	cmd.Run(ctx)
+	err := cmd.Run(ctx)
+	if err != nil {
+		return errors.Wrap(err, "command failed to execute")
+	}
 
 	return nil
 }
 
 // parseMessageContent parses message for the command name and its args.
-func parseMessageContent(msg, prefix string) (string, []string, error) {
+func parseMessageContent(msg, prefix string) (string, []string) {
 	tokens := strings.Split(msg, " ")
 	namePrefix := tokens[0]
 
 	ok := strings.HasPrefix(namePrefix, prefix)
 	if !ok {
-		return "", []string{}, errors.New("Illegal route")
+		return "", []string{}
 	}
 
-	return namePrefix[1:], tokens[1:], nil
+	return namePrefix[1:], tokens[1:]
 }
