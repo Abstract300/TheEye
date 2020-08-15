@@ -69,6 +69,6 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 
 	err := router.CommandHandler(*m.Message, dg)
 	if err != nil {
-		log.Printf("%+v", err)
+		log.Println(err)
 	}
 }
