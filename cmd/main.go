@@ -18,9 +18,6 @@ var (
 )
 
 func main() {
-	router = command.NewRoute("?")
-	router.NewCommand("hello", SayHello)
-	router.NewCommand("ping", SayPing)
 
 	Token, err := token.NewToken("token.json", token.Noop{})
 	if err != nil {
