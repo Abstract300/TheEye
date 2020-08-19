@@ -7,68 +7,77 @@ import (
 	"github.com/pkg/errors"
 )
 
-// Runner is the function to run to execute a command.
 type Runner func(ctx *Context) error
 
-// Route holds the route for a command based on the prefix.
-type Route struct {
-	Prefix      string
-	Cmd         map[string]*Command
-	Permissions Permission
+// Command is a discord command.
+type Command struct {
+	Name  string
+	Desc  string
+	Usage string
+	Run   Runner
 }
 
-// Permission is a permission struct.
-type Permission struct {
+// Permissions are for authenticating users/channels.
+type Permissions struct {
 	UserID    []string
 	ChannelID []string
 }
 
-// Command is a command to be run and its attribues.
-type Command struct {
-	Name string
-	Desc string
-	Run  Runner
-}
-
-// Context provides context for a command to execute.
+// Context holds the messge's context.
 type Context struct {
-	ChannelID string
-	AuthorID  string
-	MessageID string
-	Args      []string
-	Session   *discordgo.Session
+	ChannelID    string
+	AuthorID     string
+	MessageID    string
+	Args         []string
+	CommandsHelp string
+	Session      *discordgo.Session
 }
 
-// NewRoute generates a Route.
-func NewRoute(prefix string, perms Permission) *Route {
-	return &Route{
-		Prefix:      prefix,
-		Cmd:         make(map[string]*Command, 1),
-		Permissions: perms,
-	}
+// Route holds the route for a command based on the prefix.
+type Route struct {
+	Prefix     string
+	Commands   map[string]*Command
+	Permission Permissions
+}
+
+// NewRoute creates and returns a new Route with the given prefix.
+func NewRoute(prefix string, perms Permissions) *Route {
+	var route Route
+	route.Prefix = prefix
+	route.Permission = perms
+	route.Commands = make(map[string]*Command, 1)
+
+	route.NewCommand("help", "", prefix+"help", Help)
+
+	return &route
 }
 
 // NewCommand adds a command to a route.
-func (r *Route) NewCommand(name string, run Runner) {
+func (r *Route) NewCommand(name, desc, usage string, run Runner) {
 	cmd := &Command{
-		Name: name,
-		Run:  run,
+		Name:  name,
+		Desc:  desc,
+		Usage: usage,
+		Run:   run,
 	}
-	r.Cmd[cmd.Name] = cmd
+	r.Commands[cmd.Name] = cmd
+
+	helpCommand := r.Commands["help"]
+	helpCommand.Desc += "- " + cmd.Name + " : " + cmd.Desc + ".\n" + "\tUsage: `" + cmd.Usage + "`\n"
 }
 
 // Execute runs the command's execution routine.
 func (r *Route) Execute(run Runner, ctx *Context) error {
 	//check permissions
 	var approved int
-	for _, userId := range r.Permissions.UserID {
+	for _, userId := range r.Permission.UserID {
 		if userId == ctx.AuthorID {
 			approved++
 			break
 		}
 	}
 
-	for _, channelId := range r.Permissions.ChannelID {
+	for _, channelId := range r.Permission.ChannelID {
 		if channelId == ctx.ChannelID {
 			approved++
 			break
@@ -88,11 +97,15 @@ func (r *Route) Execute(run Runner, ctx *Context) error {
 }
 
 // FindCommand finds if a command exists in a route.
-func (r *Route) FindCommand(name string) *Command {
-	cmd := r.Cmd[name]
+func (r *Route) FindCommand(name string, ctx *Context) *Command {
+	cmd := r.Commands[name]
 	if cmd == nil {
 		// return a dummy command.
 		return &Command{Run: func(ctx *Context) error { return nil }}
+	}
+
+	if cmd.Name == "help" {
+		ctx.CommandsHelp = cmd.Desc
 	}
 
 	return cmd
@@ -112,7 +125,7 @@ func (r *Route) CommandHandler(msg discordgo.Message, session *discordgo.Session
 		Session:   session,
 	}
 
-	cmd := r.FindCommand(cmdName)
+	cmd := r.FindCommand(cmdName, ctx)
 
 	// Not command
 	if cmd.Name == "" {

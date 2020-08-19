@@ -18,7 +18,6 @@ var (
 )
 
 func main() {
-
 	Token, err := token.NewToken("token.json", token.Noop{})
 	if err != nil {
 		log.Fatal(err)
