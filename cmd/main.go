@@ -66,8 +66,14 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		return
 	}
 
-	err := router.CommandHandler(*m.Message, dg)
+	/*
+		err := router.CommandHandler(*m.Message, dg)
+		if err != nil {
+			log.Println(err)
+		}
+	*/
+	err := router.ListenAndServe(m.Message, dg)
 	if err != nil {
-		log.Println(err)
+		log.Printf("%v\n", err)
 	}
 }

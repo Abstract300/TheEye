@@ -7,6 +7,206 @@ import (
 	"github.com/pkg/errors"
 )
 
+type Routine func(ctx *Context) error
+
+type ContextHelper func() string
+
+type Route struct {
+	Name       string
+	Commands   map[string]*Command
+	Permission Permissions
+}
+
+// Permissions are for authenticating users/channels.
+type Permissions struct {
+	UserID    []string
+	ChannelID []string
+}
+
+type Command struct {
+	Name       string
+	Desc       string
+	SubCommand []Command
+	Run        Routine
+}
+
+type MessageContext struct {
+	MessageID string
+	UserID    string
+	ChannelID string
+	UserName  string
+}
+
+type Context struct {
+	Session *discordgo.Session
+	ContextHelper
+	*MessageContext
+}
+
+func NewRoute(name string, perms Permissions) (*Route, error) {
+	route := &Route{
+		Name:       name,
+		Commands:   make(map[string]*Command, 1),
+		Permission: perms,
+	}
+
+	err := route.NewCommand("help", "displays this help page", Help)
+
+	return route, errors.Wrap(err, "help command couldn't be registered")
+}
+
+func (r *Route) NewCommand(name, desc string, run Routine) error {
+	// either both args are nil args or the command already exists; fail.
+	if name == "" {
+		return errors.New("cannot create command")
+	}
+
+	if name == "" && desc == "" {
+		return errors.New("cannot create command")
+	}
+
+	if r.Commands[name] != nil {
+		return errors.New("command already exists")
+	}
+
+	cmd := &Command{
+		Name: name,
+		Desc: desc,
+		Run:  run,
+	}
+
+	// add command to the route.
+	r.Commands[name] = cmd
+
+	return nil
+}
+
+func (r *Route) HelpGenerator() string {
+	var helpPage string
+
+	for _, cmd := range r.Commands {
+		helpPage += "- `" + cmd.Name + "` : " + cmd.Desc + "\n\t`Usage: " + r.Name + cmd.Name + "`\n"
+	}
+
+	return helpPage
+}
+
+// TODO: subcommands.
+func (r *Route) FindCommand(commandName string, subCommand []string) (*Command, error) {
+	var cmd *Command
+
+	if r.Commands[commandName] == nil {
+		return nil, errors.New("command does not exist")
+	}
+
+	if commandName == "" {
+		return nil, errors.New("command name is nil")
+	}
+
+	cmd = r.Commands[commandName]
+
+	return cmd, nil
+}
+
+func (r *Route) ListenAndServe(msg *discordgo.Message, sess *discordgo.Session) error {
+	// ?google haha
+	fields := strings.Fields(msg.Content)
+	rootedCommand := fields[0]
+	args := fields[1:]
+
+	ok := strings.HasPrefix(rootedCommand, r.Name)
+	if !ok {
+		return nil
+	}
+
+	splitRootedCommand := strings.Split(rootedCommand, r.Name)
+
+	commandName := splitRootedCommand[1]
+
+	inCtx := &MessageContext{
+		MessageID: msg.ID,
+		UserID:    msg.Author.ID,
+		ChannelID: msg.ChannelID,
+		UserName:  msg.Author.Username,
+	}
+	ctx := &Context{
+		Session:        sess,
+		MessageContext: inCtx,
+	}
+
+	command, err := r.FindCommand(commandName, args)
+	if err != nil {
+		return errors.New("command not found")
+	}
+
+	var ctxHelper ContextHelper
+
+	switch command.Name {
+	case "help":
+		ctxHelper = r.HelpGenerator
+	default:
+		ctxHelper = func() string { return "" }
+	}
+
+	ctx.ContextHelper = ctxHelper
+
+	err = r.permissionCheck(ctx)
+	if err != nil {
+		return errors.Wrap(err, "permission died for the command")
+	}
+
+	err = command.Run(ctx)
+	if err != nil {
+		return errors.Wrap(err, "couldn't execute the command's routine")
+	}
+
+	return nil
+}
+
+func (r *Route) permissionCheck(ctx *Context) error {
+	var approved int
+
+	const (
+		NONE = iota
+		FAIL
+		PASS
+	)
+
+	for _, userID := range r.Permission.UserID {
+		if userID == ctx.UserID {
+			approved++
+
+			break
+		}
+	}
+
+	for _, channelID := range r.Permission.ChannelID {
+		if channelID == ctx.ChannelID {
+			approved++
+
+			break
+		}
+	}
+
+	// not enough permissions, fail to execute command.
+	if approved != PASS {
+		err := ctx.Session.MessageReactionAdd(ctx.ChannelID, ctx.MessageID, "❌")
+		if err != nil {
+			return errors.Wrap(err, "permission denied's emoji reaction failed for "+ctx.MessageID)
+		}
+
+		return errors.New("permission denied for " + ctx.UserID + "( " + ctx.UserName + " )")
+	}
+
+	err := ctx.Session.MessageReactionAdd(ctx.ChannelID, ctx.MessageID, "✅")
+	if err != nil {
+		return errors.Wrap(err, "approved command's emoji reaction failed for "+ctx.MessageID)
+	}
+
+	return nil
+}
+
+/*
 type Runner func(ctx *Context) error
 
 // Command is a discord command.
@@ -153,3 +353,4 @@ func parseMessageContent(msg, prefix string) (string, []string) {
 
 	return namePrefix[1:], tokens[1:]
 }
+*/
